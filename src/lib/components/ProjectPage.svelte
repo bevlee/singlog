@@ -18,7 +18,7 @@ let isRecording = $state(false);
 
 
 async function loadSong (filename) { 
-    const song = await fetch(`/file/${filename}`, {
+    const song = await fetch(`/api/file/${filename}`, {
         method: 'POST'
     });
     console.log("song is", song)
@@ -43,7 +43,7 @@ async function uploadChunk(chunk, recordingId, isFinal = false) {
     formData.append('recordingId', recordingId);
     formData.append('isFinal', isFinal.toString());
   
-    await fetch('file/chunks', {
+    await fetch('/api/file/chunks', {
         method: 'POST',
         body: formData
     });

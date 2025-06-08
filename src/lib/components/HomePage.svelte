@@ -22,7 +22,7 @@ const openNewProjectModal =  () => {
 }
 
 const loadProjects = async () => {
-    return await fetch('projects');
+    return await fetch('/api/projects');
 }
 
 </script>

@@ -20,7 +20,7 @@
     
  const isProjectNameUnique = async (name) => {
     
-    let response =  await fetch(`projects/${name}`, {
+    let response =  await fetch(`/api/projects/${name}`, {
         method: 'POST'
     });
     console.log(response)
@@ -35,7 +35,7 @@ const createProject = async (projectName) => {
     }
     if (isNameUnique) {
         //create the project
-        let response  = await fetch(`projects/${projectName}`, {
+        let response  = await fetch(`/api/projects/${projectName}`, {
             method: 'post'
         })
         if (response.status === 200) {
