@@ -2,7 +2,6 @@ import { redirect } from '@sveltejs/kit';
 export const actions = {
 	createProject: async ({request, fetch}) => {
         console.log("creating project")
-        console.log(request)
         const data = await request.formData();
 		const projectName = data.get('name');
 		const artist = data.get('artist');

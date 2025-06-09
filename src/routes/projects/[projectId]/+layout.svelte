@@ -8,7 +8,7 @@
 <div class="main"></div>
     <main>{@render children()}</main>
 
-	<aside>
+	<!-- <aside>
 		<h2>More Projects</h2>
 		<ul>
 			{#each projects as project}
@@ -17,7 +17,7 @@
 				</li>
 			{/each}
 		</ul>
-	</aside>
+	</aside> -->
 
 
 <style>

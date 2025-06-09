@@ -2,7 +2,6 @@
 import { createProject, getAllProjects } from "$lib/server/db";
 import { json } from '@sveltejs/kit';
 
-
 //gett all current projects
 export async function GET({request, params}) {
 

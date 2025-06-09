@@ -3,6 +3,7 @@ import { json } from '@sveltejs/kit';
 import fs from 'fs';
 const uploadStreams = new Map();
 
+import { createRecording } from '$lib/server/db';
 const defaultFileLocation = 'src/lib/media';
 
 
@@ -17,42 +18,55 @@ export async function GET({request, params}) {
 export async function POST({request, params}) {
   try {
 
-    console.log("in post for /file/[chunk]")
+    console.log("in post for /recording/chunks")
     const formData = await request.formData();
-    const fileId = formData.get('recordingId');
+    const uuid = formData.get('recordingId');
     const chunk = formData.get('chunk');
     const isFinal = formData.get('isFinal');
+    const projectName = formData.get('projectName');
+    const projectId = formData.get('projectId');
+    const artistName = formData.get('artistName');
+    const currentUser = "user" //TODO: Add login and users
+    // name dir based on username, artist and project name to ensure uniqueness
+    const projectDirectory = `${currentUser}-${artistName}-${projectName}`
+    const projectPath = `${defaultFileLocation}/${projectDirectory}`;
+    if (!fs.existsSync(projectPath)) {
+      fs.mkdirSync(projectPath)
+    }
+    const finalFilePath = `${projectPath}/${uuid}.ogg`;
 
-
-    const finalFilePath = `${defaultFileLocation}/${fileId}.ogg`;
-    if (!uploadStreams.has(fileId)) {
-      // Create a new write stream if it doesn't exist for this fileId
+    if (!uploadStreams.has(uuid)) {
+      // Create a new write stream if it doesn't exist for this uuid
       const writeStream = fs.createWriteStream(finalFilePath, { flags: 'a' }); // 'a' for append
-      uploadStreams.set(fileId, writeStream);
+      uploadStreams.set(uuid, writeStream);
 
       writeStream.on('error', (err) => {
           console.error('Error writing chunk:', err);
-          uploadStreams.delete(fileId);
+          uploadStreams.delete(uuid);
       });
     } 
-    const writeStream = uploadStreams.get(fileId);
+    const writeStream = uploadStreams.get(uuid);
     const arrayBuffer = await chunk.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
     writeStream.write(buffer, (err) => {
-        if (err) {
-            console.error('Error writing chunk:', err);
-            uploadStreams.delete(fileId);
-            // Optionally notify the client
-        }
+      if (err) {
+          console.error('Error writing chunk:', err);
+          uploadStreams.delete(uuid);
+      }
     });
 
     if (isFinal) {
         // Close the stream when all chunks are received
         writeStream.end(() => {
-            console.log(`Upload ${fileId} complete`);
-            uploadStreams.delete(fileId);
+            console.log(`Upload ${uuid} complete`);
+            uploadStreams.delete(uuid);
         });
+        
+        //write to db
+        console.log("creating recording", uuid, projectId, finalFilePath, Date.now())
+        createRecording(uuid, 1, projectId, finalFilePath, Date.now())
+        
         return json({ message: 'File upload complete' }, { status: 200 });
     }
 
@@ -60,18 +74,5 @@ export async function POST({request, params}) {
   } catch (error) {
     console.log(error)
         return json({ error: 'Failed to process chunk' }, { status: 500 });
-
   }
-// 	try {
-
-//     const { filename } = params;
-//     console.log("request is" , request);
-//     const { content } = await request.blob(); // Assume JSON body
-//     console.log("content is" , content)
-//     fs.writeFile(`${filename}.ogg`, content);
-//     return json({ status: 200 });
-//   } catch (error) {
-//     console.log("error is", error)
-//     return json({ error: 'Failed to write file' }, { status: 500 });
-//   }
 }

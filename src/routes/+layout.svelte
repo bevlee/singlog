@@ -6,7 +6,6 @@
     const openProject = (projectName) => {
         projectName = projectName
     }
-    console.log("aria currne is", page.url.pathname)
 
 </script>
 

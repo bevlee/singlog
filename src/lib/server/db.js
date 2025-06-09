@@ -1,20 +1,17 @@
 import Database from 'better-sqlite3';
-import path from 'path'; // Import path module for robust path handling
-import { fileURLToPath } from 'url'; // For ES Modules to get __dirname equivalent
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 // Get the directory name of the current module, equivalent to __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Define the database path relative to your project root or a data directory
-// Using path.resolve ensures the path is absolute and correct regardless of where the script is run from.
-const dbPath = path.resolve(__dirname, '../../../singlog.db'); // Adjust path as needed for your project structure
+const dbPath = path.resolve(__dirname, '../../../singlog.db'); 
 
 // Initialize the database connection. This happens only once when the module is first imported.
 const db = new Database(dbPath);
 db.pragma('journal_mode = WAL'); // Set WAL mode for better concurrency and data integrity
 
-// Define your table creation SQL
 const createProjectTable = `
     CREATE TABLE IF NOT EXISTS project (
         project_id INTEGER PRIMARY KEY AUTOINCREMENT, 
@@ -34,27 +31,29 @@ const createUserTable = `
 `;
 
 const createRecordingsTable = `
-    CREATE TABLE IF NOT EXISTS recordings ( 
+    CREATE TABLE IF NOT EXISTS recording ( 
         recording_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        recording_location TEXT NOT NULL,
-        creation_date INTEGER NOT NULL,
-        last_modified_date INTEGER NOT NULL,
+        recording_name TEXT,
+        file_uuid TEXT NOT NULL UNIQUE,
         project_id INTEGER NOT NULL,
         creator_id INTEGER NOT NULL,
+        recording_location TEXT,
+        creation_date INTEGER NOT NULL,
+        last_modified_date INTEGER NOT NULL,
         FOREIGN KEY (project_id) REFERENCES project(project_id),
         FOREIGN KEY (creator_id) REFERENCES user(user_id)
     );
 `;
 
-// Array of table creation statements
-const initTableStatements = [ // Renamed for clarity
+// TODO: Create a notes table on project id and a tags table on recording_id
+
+const initTableStatements = [ 
     createProjectTable,
     createUserTable,
     createRecordingsTable,
 ];
 
-// Function to initialize tables
-const initializeTables = () => { // Renamed from initDB to initializeTables for clarity
+const initializeTables = () => { 
     console.log("Checking and initializing database tables...");
 
     // Check if tables exist by querying sqlite_master
@@ -84,14 +83,7 @@ const initializeTables = () => { // Renamed from initDB to initializeTables for 
     }
 };
 
-// Immediately call initializeTables when this module is imported.
-// This ensures it runs only once when the server starts and the module is first loaded.
-initializeTables();
 
-// Export the database instance and any helper functions
-export { db };
-
-// You can also add helper functions to wrap common operations:
 export const getAllProjects = () => {
     const stmt = db.prepare('SELECT * FROM project');
     const allProjects = stmt.all();
@@ -110,7 +102,25 @@ export const createProject = (name, artist, creationDate) => {
     return stmt.run(name, artist, creationDate);
 };
 
-// Example: getUser function
+export const createRecording = (recordingUuid, userId, projectId, recordingLocation, creationDate) => {
+    const stmt = db.prepare('INSERT INTO recording (file_uuid, creator_id, project_id, recording_location, creation_date, last_modified_date) VALUES (?, ?, ?, ?, ?, ?) RETURNING recording_id');
+    return stmt.run(recordingUuid, userId, projectId, recordingLocation, creationDate, creationDate);
+};
+
+export const getRecordings = (projectId) => {
+    console.log("getting recordings for ", projectId)
+    const stmt = db.prepare('SELECT * FROM recording WHERE project_id = (?);');
+    const recordings = stmt.all(projectId);
+    
+    return recordings.map(row => ({
+        recordingId: row.recording_id,
+        recordingUuid: row.file_uuid,
+        recordingName: row.recording_name,
+        creationDate: row.creation_date,
+        recordingLocation: row.recording_location,
+    }))
+}
+
 export const getUser = (userId) => {
     const stmt = db.prepare('SELECT user_id, user_name, creation_date FROM user WHERE user_id = ?');
     const row = stmt.get(userId);
@@ -122,7 +132,19 @@ export const getUser = (userId) => {
             creationDate: row.creation_date,
         };
     }
-    return null; // Or throw an error, depending on your error handling
+    return null;
+};
+export const getUsers = () => {
+    const stmt = db.prepare('SELECT * FROM user;');
+    const row = stmt.all();
+
+    return row.map(row => {
+        return {
+            userId: row.user_id,
+            username: row.user_name,
+            creationDate: row.creation_date
+        }
+    })
 };
 
 export const login = (username) => {
@@ -143,3 +165,22 @@ export const createAccount = (username) => {
 const doesUserExist = (username) => {
     return true;
 }
+
+
+
+
+const initializeDB = () => {
+    initializeTables();
+
+    if (!getUsers().length > 0) {
+
+        const createAdminUserStmt = db.prepare(`
+            INSERT INTO user (user_id, user_name, creation_date) VALUES (1, ?, ?);
+        `)
+        createAdminUserStmt.run("user", Date.now());
+    }
+}
+// Immediately call initializeTables when this module is imported.
+// This ensures it runs only once when the server starts and the module is first loaded.
+
+initializeDB();
